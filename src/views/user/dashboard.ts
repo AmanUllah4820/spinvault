@@ -11,8 +11,6 @@ export function dashboardPage(data: DashboardData): string {
   const canSpin = canFreeSpin || (hasActiveDeposit && spinsLeft > 0 && wallet.balance >= 0.50)
 
   // Build wheel SVG
-  const totalSegments = WHEEL_SEGMENTS.length
-  const anglePerSegment = 360 / totalSegments
   const wheelSVG = buildWheelSVG()
 
   const spinHistory = recentSpins.slice(0, 8).map(s => {
@@ -79,31 +77,30 @@ export function dashboardPage(data: DashboardData): string {
 
     <!-- Main Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Spin Wheel (2/3 width) -->
-      <div class="lg:col-span-2">
+      <!-- Left Column: Wheel + Legend + Payout Feed (2/3 width) -->
+      <div class="lg:col-span-2 space-y-3">
+
+        <!-- Spin Wheel Card -->
         <div class="card p-4" id="spin">
           <div class="text-center mb-4">
             <h2 class="font-display text-xl font-bold text-white mb-1">Spin the Wheel</h2>
             <p class="text-gray-400 text-sm">
               ${canFreeSpin
                 ? `<span class="text-gold-400 font-semibold">🎁 1 Free Spin Available!</span> · Resets every 24 hours`
-                : canSpin 
+                : canSpin
                 ? `${spinsLeft} spins remaining today · $0.50 per spin`
-                : spinsLeft === 0 
+                : spinsLeft === 0
                 ? 'Daily spin limit reached.'
                 : 'Insufficient balance for spin fee ($0.50 required)'}
             </p>
           </div>
 
-          <!-- Wheel (SMALLER) -->
+          <!-- Wheel -->
           <div class="relative mx-auto mb-4" style="width:220px;height:220px;">
-            <!-- Pointer (SMALLER) -->
             <div class="absolute top-0 left-1/2 -translate-x-1/2 z-20 -translate-y-1">
               <div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:20px solid #f59e0b;filter:drop-shadow(0 2px 4px rgba(245,158,11,0.6));"></div>
             </div>
-            <!-- Center Hub (SMALLER) -->
             <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-dark-400 border-3 border-gold-500 shadow-md shadow-gold-500/40 flex items-center justify-center text-sm">🎰</div>
-            <!-- Canvas Wheel (SMALLER) -->
             <canvas id="wheel-canvas" width="220" height="220" class="rounded-full shadow-xl shadow-gold-500/20"></canvas>
           </div>
 
@@ -111,32 +108,32 @@ export function dashboardPage(data: DashboardData): string {
           <div class="text-center">
           ${canFreeSpin ? `
           <button id="spin-btn" onclick="doSpin()"
-          class="btn-gold px-8 py-3 text-sm animate-pulse-gold hover:animate-none ring ring-gold-500/40">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
-    🎁 USE FREE SPIN
-  </button>
-  <p class="mt-2 text-xs text-gold-400/70">No deposit needed · Resets every 24 hours</p>
-  ` : canSpin ? `
-  <button id="spin-btn" onclick="doSpin()"
-    class="btn-gold px-8 py-3 text-sm animate-pulse-gold hover:animate-none">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-    SPIN NOW · $0.50
-  </button>
-  <p class="mt-2 text-xs text-gray-600">Spin fee deducted from balance. Must maintain positive balance.</p>
-  ` : hasActiveDeposit ? `
-  <button disabled class="btn-gold px-8 py-3 text-sm opacity-50 cursor-not-allowed">
-    ${spinsLeft === 0 ? '⏳ Come Back Tomorrow' : '💰 Insufficient Balance'}
-  </button>
-  <p class="mt-2 text-xs text-gray-600">Spin fee deducted from balance. Must maintain positive balance.</p>
-  ` : `
-  <div class="space-y-2">
-    <p class="text-xs text-gray-500"> Free spin used · Reset in <span id="countdown">23:59:59</span> </p>
-    <a href="/user/deposit" class="btn-gold inline-flex items-center gap-2 px-8 py-3 text-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-      Deposit to Play
-    </a>
-  </div>`}
-</div>
+            class="btn-gold px-8 py-3 text-sm animate-pulse-gold hover:animate-none ring ring-gold-500/40">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg>
+            🎁 USE FREE SPIN
+          </button>
+          <p class="mt-2 text-xs text-gold-400/70">No deposit needed · Resets every 24 hours</p>
+          ` : canSpin ? `
+          <button id="spin-btn" onclick="doSpin()"
+            class="btn-gold px-8 py-3 text-sm animate-pulse-gold hover:animate-none">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            SPIN NOW · $0.50
+          </button>
+          <p class="mt-2 text-xs text-gray-600">Spin fee deducted from balance. Must maintain positive balance.</p>
+          ` : hasActiveDeposit ? `
+          <button disabled class="btn-gold px-8 py-3 text-sm opacity-50 cursor-not-allowed">
+            ${spinsLeft === 0 ? '⏳ Come Back Tomorrow' : '💰 Insufficient Balance'}
+          </button>
+          <p class="mt-2 text-xs text-gray-600">Spin fee deducted from balance. Must maintain positive balance.</p>
+          ` : `
+          <div class="space-y-2">
+            <p class="text-xs text-gray-500">Free spin used · Reset in <span id="countdown">23:59:59</span></p>
+            <a href="/user/deposit" class="btn-gold inline-flex items-center gap-2 px-8 py-3 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Deposit to Play
+            </a>
+          </div>`}
+          </div>
 
           <!-- Result Display -->
           <div id="spin-result" class="hidden mt-4 p-3 rounded-xl border text-center animate-slide-up">
@@ -146,7 +143,7 @@ export function dashboardPage(data: DashboardData): string {
         </div>
 
         <!-- Wheel Legend -->
-        <div class="card p-3 mt-3">
+        <div class="card p-3">
           <p class="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-2">Wheel Segments</p>
           <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5">
             ${WHEEL_SEGMENTS.map(s => `
@@ -156,6 +153,48 @@ export function dashboardPage(data: DashboardData): string {
             </div>`).join('')}
           </div>
         </div>
+
+        <!-- ─── Live Payout Feed ─────────────────────────────────────────── -->
+        <div class="card overflow-hidden border border-green-500/20">
+
+          <!-- Header -->
+          <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              <p class="text-xs font-semibold text-gray-300 uppercase tracking-wide">Live Payouts</p>
+              <span class="badge bg-green-500/15 text-green-400 border border-green-500/30 text-xs">Real-time</span>
+            </div>
+            <span class="text-xs text-gray-600">Auto-refresh 30s</span>
+          </div>
+
+          <!-- Feed rows -->
+          <div id="payout-feed" class="divide-y divide-white/5 max-h-72 overflow-y-auto">
+            <!-- Skeleton loaders shown while fetching -->
+            ${Array(5).fill(0).map(() => `
+            <div class="flex items-center gap-3 px-4 py-3 animate-pulse">
+              <div class="w-9 h-9 rounded-full bg-white/5 flex-shrink-0"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-3 bg-white/5 rounded w-28"></div>
+                <div class="h-2 bg-white/5 rounded w-16"></div>
+              </div>
+              <div class="space-y-1 text-right">
+                <div class="h-3 bg-white/5 rounded w-14"></div>
+                <div class="h-2 bg-white/5 rounded w-10 ml-auto"></div>
+              </div>
+            </div>`).join('')}
+          </div>
+
+          <!-- Footer CTA -->
+          <div class="px-4 py-3 border-t border-white/5 bg-green-500/5 flex items-center justify-between">
+            <p class="text-xs text-gray-500">Showing last 20 confirmed payouts</p>
+            <a href="/user/withdraw" class="text-xs text-green-400 font-semibold hover:text-green-300 transition-colors flex items-center gap-1">
+              Withdraw yours
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+          </div>
+        </div>
+        <!-- ─── End Live Payout Feed ───────────────────────────────────── -->
+
       </div>
 
       <!-- Sidebar (1/3 width) -->
@@ -250,7 +289,6 @@ export function dashboardPage(data: DashboardData): string {
         const startAngle = (i * 2 * Math.PI / SEGMENTS.length) + rotation
         const endAngle = ((i + 1) * 2 * Math.PI / SEGMENTS.length) + rotation
 
-        // Segment fill
         ctx.beginPath()
         ctx.moveTo(cx, cy)
         ctx.arc(cx, cy, r, startAngle, endAngle)
@@ -261,7 +299,6 @@ export function dashboardPage(data: DashboardData): string {
         ctx.lineWidth = 1.5
         ctx.stroke()
 
-        // Label (SMALLER FONT)
         ctx.save()
         ctx.translate(cx, cy)
         ctx.rotate(startAngle + Math.PI / SEGMENTS.length)
@@ -274,14 +311,12 @@ export function dashboardPage(data: DashboardData): string {
         ctx.restore()
       })
 
-      // Outer ring
       ctx.beginPath()
       ctx.arc(cx, cy, r, 0, 2 * Math.PI)
       ctx.strokeStyle = 'rgba(245,158,11,0.6)'
       ctx.lineWidth = 3
       ctx.stroke()
 
-      // Inner ring
       ctx.beginPath()
       ctx.arc(cx, cy, r * 0.1, 0, 2 * Math.PI)
       ctx.fillStyle = '#090e14'
@@ -309,7 +344,6 @@ export function dashboardPage(data: DashboardData): string {
           return
         }
 
-        // Animate wheel to the winning segment
         const targetSegment = data.segment_index
         const segmentAngle = 2 * Math.PI / SEGMENTS.length
         const targetAngle = -(targetSegment * segmentAngle + segmentAngle / 2)
@@ -320,21 +354,12 @@ export function dashboardPage(data: DashboardData): string {
           currentRotation = finalRotation
           showResult(data.multiplier > 0, data, null)
           isSpinning = false
-          // Update stats
-          if (data.new_balance !== undefined) {
-            document.querySelectorAll('.font-mono').forEach(el => {
-              if (el.textContent.includes('$') && el.closest('[data-stat="balance"]')) {
-                el.textContent = '$' + data.new_balance.toFixed(2)
-              }
-            })
-          }
           if (data.spins_left !== undefined && data.spins_left <= 0) {
             if (btn) { btn.disabled = true; btn.textContent = '⏳ Come Back Tomorrow' }
           } else if (btn) {
             btn.disabled = false
             btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>SPIN NOW · $0.50'
           }
-          // Reload page to update stats after short delay
           setTimeout(() => location.reload(), 2500)
         })
       } catch (e) {
@@ -349,7 +374,6 @@ export function dashboardPage(data: DashboardData): string {
       function frame(now) {
         const elapsed = now - start
         const progress = Math.min(elapsed / duration, 1)
-        // Ease out cubic
         const eased = 1 - Math.pow(1 - progress, 3)
         const rotation = from + (to - from) * eased
         drawWheel(rotation)
@@ -378,23 +402,60 @@ export function dashboardPage(data: DashboardData): string {
         sub.textContent = 'Spin fee: -$0.50 · Keep spinning!'
       }
     }
-    
-    function updateCountdown() {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-  const diff = tomorrow - now;
-  if (diff <= 0) { location.reload(); return; }
-  const hours = Math.floor(diff / 3600000);
-  const minutes = Math.floor((diff % 3600000) / 60000);
-  const seconds = Math.floor((diff % 60000) / 1000);
-  const el = document.getElementById('countdown');
-  if (el) el.innerText =   hours.toString().padStart(2,'0') + ':' +   minutes.toString().padStart(2,'0') + ':' +   seconds.toString().padStart(2,'0');
-}
-setInterval(updateCountdown, 1000);
-updateCountdown();
 
+    function updateCountdown() {
+      const now = new Date()
+      const tomorrow = new Date(now)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(0, 0, 0, 0)
+      const diff = tomorrow - now
+      if (diff <= 0) { location.reload(); return }
+      const hours = Math.floor(diff / 3600000)
+      const minutes = Math.floor((diff % 3600000) / 60000)
+      const seconds = Math.floor((diff % 60000) / 1000)
+      const el = document.getElementById('countdown')
+      if (el) el.innerText =
+        hours.toString().padStart(2, '0') + ':' +
+        minutes.toString().padStart(2, '0') + ':' +
+        seconds.toString().padStart(2, '0')
+    }
+    setInterval(updateCountdown, 1000)
+    updateCountdown()
+
+    // ─── Live Payout Feed ────────────────────────────────────────────────────
+    async function loadPayouts() {
+      try {
+        const res = await fetch('/api/payouts/recent')
+        if (!res.ok) return
+        const { payouts } = await res.json()
+        if (!payouts || !payouts.length) {
+          document.getElementById('payout-feed').innerHTML =
+            '<p class="text-center text-gray-600 text-xs py-6">No payouts yet — be the first!</p>'
+          return
+        }
+
+        document.getElementById('payout-feed').innerHTML = payouts.map(p => \`
+          <div class="flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors">
+            <div class="w-9 h-9 rounded-full bg-green-500/15 border border-green-500/30
+                        flex items-center justify-center text-base flex-shrink-0 select-none">
+              \${p.flag}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-white truncate">\${p.name}</p>
+              <p class="text-xs text-gray-500">\${p.time}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <p class="text-sm font-bold text-green-400 font-mono">+$\${p.amount}</p>
+              <p class="text-xs text-gray-600">paid out</p>
+            </div>
+            <div class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0"></div>
+          </div>
+        \`).join('')
+      } catch (e) { /* silent — skeletons stay */ }
+    }
+
+    loadPayouts()
+    setInterval(loadPayouts, 30000)
   </script>`, {
     title: 'Dashboard – SpinVault',
     description: 'Spin the wheel and earn real money every day.',
@@ -405,6 +466,5 @@ updateCountdown();
 }
 
 function buildWheelSVG(): string {
-  // SVG wheel is built on canvas via JS instead
   return ''
 }
