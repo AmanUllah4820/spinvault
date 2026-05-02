@@ -7,6 +7,7 @@ import type { Env } from '../types'
 import { payfastHandler } from './PayFast';
 import { GenOrderId } from '../utils/shared'
 import { authMiddleware } from '../middleware/auth'
+import { sendEmail, depositSuccessEmailTemplate } from '../utils/email'
 
 const api = new Hono<{ Bindings: Env }>()
 
@@ -221,7 +222,8 @@ api.post('/handleIPN', async (c) => {
   return response
 })
 
-// ─── POST /api/admin/confirm-deposit (Manual admin confirm) ───────────────────
+// ─── POST /api/admin/confirm-deposit ─────────────────────────────────────────
+// Manual admin confirm — also sends deposit success email
 api.post('/admin/confirm-deposit', async (c) => {
   const adminKey = c.req.header('X-Admin-Key')
   if (!adminKey || adminKey !== c.env.ADMIN_KEY) {
@@ -230,12 +232,12 @@ api.post('/admin/confirm-deposit', async (c) => {
 
   const { deposit_id } = await c.req.json<{ deposit_id: string }>()
   if (!deposit_id) return c.json({ error: 'deposit_id required' }, 400)
-  
+
   const deposit = await c.env.DB.prepare('SELECT * FROM deposits WHERE id = ?').bind(deposit_id).first<any>()
   if (!deposit) return c.json({ error: 'Deposit not found' }, 404)
   if (deposit.status !== 'pending') return c.json({ error: 'Already processed' }, 400)
 
-  const plan = await c.env.DB.prepare('SELECT daily_spins FROM plans WHERE id = ?').bind(deposit.plan_id).first<{ daily_spins: number }>()
+  const plan = await c.env.DB.prepare('SELECT * FROM plans WHERE id = ?').bind(deposit.plan_id).first<any>()
   const spins = plan?.daily_spins || 5
 
   await c.env.DB.batch([
@@ -246,6 +248,33 @@ api.post('/admin/confirm-deposit', async (c) => {
       WHERE user_id = ?
     `).bind(deposit.amount, deposit.amount, spins, deposit.user_id),
   ])
+
+  // ── Send deposit confirmed email ─────────────────────────────────────────
+  const userData = await c.env.DB.prepare(`
+    SELECT u.full_name, u.email, w.balance 
+    FROM users u
+    JOIN user_wallets w ON w.user_id = u.id
+    WHERE u.id = ?
+  `).bind(deposit.user_id).first<{ full_name: string; email: string; balance: number }>()
+
+  if (userData && plan) {
+    await sendEmail({
+      to: userData.email,
+      toName: userData.full_name,
+      subject: `Deposit Confirmed – $${(deposit.amount as number).toFixed(2)} Added to Your Account`,
+      html: depositSuccessEmailTemplate({
+        name: userData.full_name,
+        amount: deposit.amount,
+        planName: plan.name,
+        dailySpins: plan.daily_spins,
+        newBalance: userData.balance,
+        appName: 'SpinVault',
+      }),
+      apiKey: c.env.BREVO_API_KEY,
+      fromEmail: c.env.BREVO_FROM_EMAIL,
+      fromName: c.env.BREVO_FROM_NAME,
+    })
+  }
 
   return c.json({ ok: true, message: 'Deposit confirmed and wallet updated.' })
 })
@@ -272,6 +301,57 @@ api.post('/admin/reset-spins', async (c) => {
   `).run()
 
   return c.json({ ok: true, message: 'Spins reset for all active users.' })
+})
+
+// ─── POST /api/admin/mark-withdrawal-paid ─────────────────────────────────────
+// New endpoint: admin marks a withdrawal as paid → sends payment email
+api.post('/admin/mark-withdrawal-paid', async (c) => {
+  const adminKey = c.req.header('X-Admin-Key')
+  if (!adminKey || adminKey !== c.env.ADMIN_KEY) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const { withdrawal_id } = await c.req.json<{ withdrawal_id: number }>()
+  if (!withdrawal_id) return c.json({ error: 'withdrawal_id required' }, 400)
+
+  const wr = await c.env.DB.prepare(`
+    SELECT wr.*, wd.account_number, u.full_name, u.email
+    FROM withdrawal_requests wr
+    JOIN users u ON u.id = wr.user_id
+    LEFT JOIN withdraw_details wd ON wd.user_id = wr.user_id
+    WHERE wr.id = ?
+  `).bind(withdrawal_id).first<any>()
+
+  if (!wr) return c.json({ error: 'Withdrawal not found' }, 404)
+  if (wr.status === 'paid') return c.json({ error: 'Already marked as paid' }, 400)
+
+  await c.env.DB.prepare(`
+    UPDATE withdrawal_requests
+    SET status = 'paid', processed_at = datetime('now')
+    WHERE id = ?
+  `).bind(withdrawal_id).run()
+
+  // ── Send withdrawal paid email ─────────────────────────────────────────
+  const { sendEmail: sendWithdrawalEmail, withdrawalPaidEmailTemplate } = await import('../utils/email')
+  const accountLast4 = String(wr.account_number || '0000').slice(-4)
+
+  await sendWithdrawalEmail({
+    to: wr.email,
+    toName: wr.full_name,
+    subject: `Payment Sent – $${(wr.amount as number).toFixed(2)} on Its Way!`,
+    html: withdrawalPaidEmailTemplate({
+      name: wr.full_name,
+      amount: wr.amount,
+      txnId: wr.txn_id,
+      accountLast4,
+      appName: c.env.BREVO_FROM_NAME || 'SpinVault',
+    }),
+    apiKey: c.env.BREVO_API_KEY,
+    fromEmail: c.env.BREVO_FROM_EMAIL,
+    fromName: c.env.BREVO_FROM_NAME,
+  })
+
+  return c.json({ ok: true, message: 'Withdrawal marked as paid and user notified.' })
 })
 
 export default api
