@@ -8,6 +8,11 @@ import { dashboardPage } from '../views/user/dashboard'
 import { withdrawPage } from '../views/user/withdraw'
 import { referralsPage } from '../views/user/referrals'
 import { generateTxnId } from '../utils/shared'
+import {
+  sendEmail,
+  withdrawalRequestEmailTemplate,
+  depositSuccessEmailTemplate,
+} from '../utils/email'
 
 function sanitize(s: string): string {
   return s
@@ -166,6 +171,7 @@ user.get('/deposit', async (c) => {
 })
 
 // ─── POST /user/deposit ───────────────────────────────────────────────────────
+// Manual bank transfer deposit — send confirmation email to user
 user.post('/deposit', async (c) => {
   const me   = c.get('user')
   const form = await c.req.formData()
@@ -190,6 +196,33 @@ user.post('/deposit', async (c) => {
    INSERT INTO deposits (id, user_id, plan_id, amount, payment_method, transaction_ref, status)
    VALUES (?, ?, ?, ?, ?, ?, 'pending')
   `).bind(depositId, me.sub, plan_id, amount, payment_method, transaction_ref || null).run()
+
+  // ── Send deposit received email (manual transfer – pending review) ────────
+  try {
+    const userRow = await c.env.DB.prepare('SELECT full_name, email FROM users WHERE id = ?').bind(me.sub).first<{ full_name: string; email: string }>()
+    if (userRow) {
+      await sendEmail({
+        to: userRow.email,
+        toName: userRow.full_name,
+        subject: `Deposit Received – $${amount.toFixed(2)} Under Review`,
+        html: depositSuccessEmailTemplate({
+          name: userRow.full_name,
+          amount,
+          planName: plan.name,
+          dailySpins: plan.daily_spins,
+          // Balance not updated yet for manual — show pending note
+          newBalance: 0,
+          appName: c.env.BREVO_FROM_NAME || 'SpinVault',
+        }).replace('$0.00', 'Pending confirmation'),
+        apiKey: c.env.BREVO_API_KEY,
+        fromEmail: c.env.BREVO_FROM_EMAIL,
+        fromName: c.env.BREVO_FROM_NAME,
+      })
+    }
+  } catch (emailErr) {
+    console.error('Deposit email error:', emailErr)
+    // Non-blocking — continue even if email fails
+  }
 
   return c.redirect('/user/dashboard?success=Deposit+submitted+for+review')
 })
@@ -226,6 +259,7 @@ user.get('/withdraw', async (c) => {
 })
 
 // ─── POST /user/withdraw ──────────────────────────────────────────────────────
+// Deduct balance, record request, send withdrawal notification email
 user.post('/withdraw', async (c) => {
   const me   = c.get('user')
   const form = await c.req.formData()
@@ -240,7 +274,11 @@ user.post('/withdraw', async (c) => {
     return c.redirect('/user/withdraw?error=Invalid+withdrawal+amount')
   }
 
-  const details = await c.env.DB.prepare('SELECT user_id FROM withdraw_details WHERE user_id = ?').bind(me.sub).first()
+  // Verify bank details exist and get account number
+  const details = await c.env.DB.prepare(
+    'SELECT user_id, account_number FROM withdraw_details WHERE user_id = ?'
+  ).bind(me.sub).first<{ user_id: string; account_number: string }>()
+
   if (!details) {
     return c.redirect('/user/WithdrawDetails')
   }
@@ -253,8 +291,39 @@ user.post('/withdraw', async (c) => {
     return c.redirect('/user/withdraw?error=Insufficient+balance.+Please+refresh+and+try+again.')
   }
 
+  const txnId = generateTxnId()
+
   await c.env.DB.prepare('INSERT INTO withdrawal_requests (user_id, txn_id, amount, note, payment_method) VALUES (?,?,?,?,?)')
-  .bind(me.sub, generateTxnId(), amount, note || null, 'bank_transfer').run()
+    .bind(me.sub, txnId, amount, note || null, 'bank_transfer').run()
+
+  // ── Send withdrawal request email ─────────────────────────────────────────
+  try {
+    const userRow = await c.env.DB.prepare('SELECT full_name, email FROM users WHERE id = ?').bind(me.sub).first<{ full_name: string; email: string }>()
+    if (userRow) {
+      const remainingBalance = Math.max(0, wallet.balance - amount)
+      const accountLast4 = String(details.account_number).slice(-4)
+
+      await sendEmail({
+        to: userRow.email,
+        toName: userRow.full_name,
+        subject: `Withdrawal Request – $${amount.toFixed(2)} Submitted`,
+        html: withdrawalRequestEmailTemplate({
+          name: userRow.full_name,
+          amount,
+          txnId,
+          remainingBalance,
+          accountLast4,
+          appName: c.env.BREVO_FROM_NAME || 'SpinVault',
+        }),
+        apiKey: c.env.BREVO_API_KEY,
+        fromEmail: c.env.BREVO_FROM_EMAIL,
+        fromName: c.env.BREVO_FROM_NAME,
+      })
+    }
+  } catch (emailErr) {
+    console.error('Withdrawal request email error:', emailErr)
+    // Non-blocking — continue
+  }
 
   return c.redirect('/user/withdraw?success=Withdrawal+request+submitted+successfully')
 })
