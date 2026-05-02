@@ -1,0 +1,23 @@
+name = "spinvault"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "spin-win-db"
+database_id = "48112a46-8d7e-4a51-ad07-1efe0dd21894"
+
+# KV namespace for sessions and caching
+[[kv_namespaces]]
+binding = "KV_SESSIONS"
+id = "ea712bbbac24417b98645ff460ba8983"
+
+[vars]
+BREVO_FROM_EMAIL = "noreply@spinvault.app"
+BREVO_FROM_NAME = "SpinVault"
+APP_URL = "https://spinvault.pages.dev"
+PAYFAST_MERCHANT_ID = "22554"
+PAYFAST_STORE_ID = "22554-1J41OFM7RJ_V"
+PayFast_BASE_URL = "https://ipg1.apps.net.pk"
+SPIN_FEE = "0.50"

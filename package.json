@@ -1,0 +1,20 @@
+{
+  "name": "spinvault",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm run css && wrangler pages dev --d1=DB --compatibility-date=2024-09-23",
+    "css": "tailwindcss -i ./src/input.css -o ./public/css/styles.css",
+    "build:tailwind": "tailwindcss -i ./src/input.css -o ./public/css/styles.css",
+    "build": "npm run css && tsc --noEmit",
+    "deploy": "npm run build && wrangler pages deploy public"
+  },
+  "dependencies": {
+    "hono": "^4.6.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.91.0"
+  }
+}

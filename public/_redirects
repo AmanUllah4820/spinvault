@@ -1,0 +1,8 @@
+# Cloudflare Pages Redirects
+# All dynamic routes are handled by the Functions layer ([[path]].ts)
+# Static assets served directly from /public
+
+# Ensure no trailing slash issues
+/register/  /register  301
+/login/     /login     301
+/logout/    /logout    301
