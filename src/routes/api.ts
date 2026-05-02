@@ -10,6 +10,53 @@ import { authMiddleware } from '../middleware/auth'
 
 const api = new Hono<{ Bindings: Env }>()
 
+// ─── GET /api/payouts/recent (PUBLIC — no auth) ───────────────────────────────
+api.get('/payouts/recent', async (c) => {
+  const rows = await c.env.DB.prepare(`
+    SELECT
+      wr.amount,
+      wr.created_at,
+      wd.bank_country,
+      u.full_name
+    FROM withdrawal_requests wr
+    JOIN users u ON u.id = wr.user_id
+    LEFT JOIN withdraw_details wd ON wd.user_id = wr.user_id
+    WHERE wr.status = 'paid'
+    ORDER BY wr.created_at DESC
+    LIMIT 20
+  `).all<any>()
+
+  const COUNTRY_FLAGS: Record<string, string> = {
+    PK:'🇵🇰', US:'🇺🇸', GB:'🇬🇧', AE:'🇦🇪', SA:'🇸🇦',
+    CA:'🇨🇦', AU:'🇦🇺', DE:'🇩🇪', IN:'🇮🇳', NG:'🇳🇬',
+    PH:'🇵🇭', ID:'🇮🇩', TR:'🇹🇷', EG:'🇪🇬', BD:'🇧🇩',
+    FR:'🇫🇷', BR:'🇧🇷', MX:'🇲🇽', ZA:'🇿🇦', KE:'🇰🇪',
+  }
+
+  const masked = rows.results.map(r => {
+    const parts = (r.full_name as string).trim().split(' ')
+    const name = parts[0] + (parts[1] ? ' ' + parts[1][0] + '.' : '')
+    const flag = COUNTRY_FLAGS[r.bank_country as string] || '🌍'
+    const minsAgo = Math.floor(
+      (Date.now() - new Date(r.created_at).getTime()) / 60000
+    )
+    const timeLabel =
+      minsAgo < 2    ? 'just now' :
+      minsAgo < 60   ? `${minsAgo}m ago` :
+      minsAgo < 1440 ? `${Math.floor(minsAgo / 60)}h ago` :
+                       `${Math.floor(minsAgo / 1440)}d ago`
+
+    return {
+      name,
+      flag,
+      amount: (r.amount as number).toFixed(2),
+      time: timeLabel,
+    }
+  })
+
+  return c.json({ payouts: masked })
+})
+
 // ─── POST /api/spin ───────────────────────────────────────────────────────────
 api.post('/spin', authMiddleware, async (c) => {
   const me = c.get('user')
@@ -59,7 +106,6 @@ api.post('/spin', authMiddleware, async (c) => {
   let net = 0
 
   if (isFreeS) {
-    // Free spin: earn against $1 base, no fee, winnings capped at $0.50
     rawEarning = multiplier > 0 ? Math.min(FREE_SPIN_BASE * multiplier * 0.02, 0.50) : 0
     fee = 0
     net = rawEarning
