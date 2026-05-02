@@ -161,10 +161,8 @@ export function dashboardPage(data: DashboardData): string {
           <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              <p class="text-xs font-semibold text-gray-300 uppercase tracking-wide">Live Payouts</p>
-              <span class="badge bg-green-500/15 text-green-400 border border-green-500/30 text-xs">Real-time</span>
+              <p class="text-xs font-semibold text-gray-300 uppercase tracking-wide">Latest Payouts</p>
             </div>
-            <span class="text-xs text-gray-600">Auto-refresh 30s</span>
           </div>
 
           <!-- Feed rows -->
@@ -188,7 +186,7 @@ export function dashboardPage(data: DashboardData): string {
           <div class="px-4 py-3 border-t border-white/5 bg-green-500/5 flex items-center justify-between">
             <p class="text-xs text-gray-500">Showing last 20 confirmed payouts</p>
             <a href="/user/withdraw" class="text-xs text-green-400 font-semibold hover:text-green-300 transition-colors flex items-center gap-1">
-              Withdraw yours
+              Withdraw
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
           </div>
@@ -455,7 +453,6 @@ export function dashboardPage(data: DashboardData): string {
     }
 
     loadPayouts()
-    setInterval(loadPayouts, 30000)
   </script>`, {
     title: 'Dashboard – SpinVault',
     description: 'Spin the wheel and earn real money every day.',
